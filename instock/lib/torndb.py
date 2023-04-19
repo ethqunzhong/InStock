@@ -100,7 +100,7 @@ class Connection(object):
         try:
             self.reconnect()
         except Exception:
-            logging.error("Cannot connect to MySQL on %s", self.host,
+            logging.debug("Cannot connect to MySQL on %s", self.host,
                           exc_info=True)
 
     def __del__(self):
