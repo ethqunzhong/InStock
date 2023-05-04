@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import os
 import pymysql
 from sqlalchemy import create_engine
 from sqlalchemy.types import NVARCHAR
@@ -17,9 +18,26 @@ db_database = "instockdb"  # 数据库名称
 db_port = 3306  # 数据库服务端口
 db_charset = "utf8mb4"  # 数据库字符集
 
+# 使用环境变量获得数据库,docker -e 传递
+_db_host = os.environ.get('db_host')
+if _db_host is not None:
+    db_host = _db_host
+_db_user = os.environ.get('db_user')
+if _db_user is not None:
+    db_user = _db_user
+_db_password = os.environ.get('db_password')
+if _db_password is not None:
+    db_password = _db_password
+_db_database = os.environ.get('db_database')
+if _db_database is not None:
+    db_database = _db_database
+_db_port = os.environ.get('db_port')
+if _db_port is not None:
+    db_port = int(_db_port)
+
 MYSQL_CONN_URL = "mysql+pymysql://%s:%s@%s:%s/%s?charset=%s" % (
     db_user, db_password, db_host, db_port, db_database, db_charset)
-logging.info("{}执行信息：{}".format('数据库链接', MYSQL_CONN_URL))
+logging.info(f"数据库链接信息：{ MYSQL_CONN_URL}")
 
 MYSQL_CONN_DBAPI = {'host': db_host, 'user': db_user, 'password': db_password, 'database': db_database,
                     'charset': db_charset, 'port': db_port, 'autocommit': True}
@@ -48,7 +66,7 @@ def conn_not_cursor():
     try:
         _db = pymysql.connect(**MYSQL_CONN_DBAPI)
     except Exception as e:
-        logging.debug("{}处理异常：{}{}".format('database.conn_not_cursor', MYSQL_CONN_DBAPI, e))
+        logging.error(f"database.conn_not_cursor处理异常：{MYSQL_CONN_DBAPI}{e}")
     return _db
 
 
@@ -84,7 +102,7 @@ def insert_other_db_from_df(to_db, data, table_name, cols_type, write_index, pri
             data.to_sql(name=table_name, con=engine_mysql, schema=to_db, if_exists='append',
                         dtype=cols_type, index=write_index, )
     except Exception as e:
-        logging.debug("{}处理异常：{}表{}".format('database.insert_other_db_from_df', table_name, e))
+        logging.error(f"database.insert_other_db_from_df处理异常：{table_name}表{e}")
 
     # 判断是否存在主键
     if not ipt.get_pk_constraint(table_name)['constrained_columns']:
@@ -92,7 +110,7 @@ def insert_other_db_from_df(to_db, data, table_name, cols_type, write_index, pri
             # 执行数据库插入数据。
             conn_with_cursor().execute(f'ALTER TABLE `{table_name}` ADD PRIMARY KEY ({primary_keys});')
         except Exception as e:
-            logging.debug("{}处理异常：{}表{}".format('database.insert_other_db_from_df', table_name, e))
+            logging.error(f"database.insert_other_db_from_df处理异常：{table_name}表{e}")
 
 
 # 更新数据
@@ -133,7 +151,7 @@ def update_db_from_df(data, table_name, where):
                 db.execute(sql)
             db.close()
         except Exception as e:
-            logging.debug("{}处理异常：{}{}".format('database.update_db_from_df', sql, e))
+            logging.error(f"database.update_db_from_df处理异常：{sql}{e}")
 
 
 # 检查表是否存在
@@ -152,6 +170,20 @@ def checkTableIsExist(tableName):
     db.close()
     return False
 
+def checkTableIsExist(tableName):
+    with conn_with_cursor() as db:
+        db.execute("""
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_name = '{0}'
+            """.format(tableName.replace('\'', '\'\'')))
+
+    if db.fetchone()[0] == 1:
+        db.close()
+        return True
+
+    db.close()
+    return False
 
 # 增删改数据
 def executeSql(sql, params=()):
@@ -160,7 +192,7 @@ def executeSql(sql, params=()):
             db.execute(sql, params)
             db.close()
         except Exception as e:
-            logging.debug("{}处理异常：{}{}".format('database.executeSql', sql, e))
+            logging.error(f"database.executeSql处理异常：{sql}{e}")
 
 
 # 查询数据
@@ -169,7 +201,7 @@ def executeSqlFetch(sql, params=()):
         try:
             db.execute(sql, params)
         except Exception as e:
-            logging.debug("{}处理异常：{}{}".format('database.executeSqlFetch', sql, e))
+            logging.error(f"database.executeSqlFetch处理异常：{sql}{e}")
 
         result = db.fetchall()
         db.close()
@@ -182,7 +214,7 @@ def executeSqlCount(sql, params=()):
         try:
             db.execute(sql, params)
         except Exception as e:
-            logging.debug("{}处理异常：{}".format('database.select_count计算数量', e))
+            logging.error(f"database.select_count计算数量处理异常：{e}")
 
         result = db.fetchall()
         db.close()

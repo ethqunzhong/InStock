@@ -14,7 +14,7 @@ sys.path.append(cpath)
 import instock.lib.run_template as runt
 import instock.core.tablestructure as tbs
 import instock.lib.database as mdb
-from instock.core.singleton import stock_hist_data
+from instock.core.singleton_stock import stock_hist_data
 import instock.core.pattern.pattern_recognitions as kpr
 
 __author__ = 'myh '
@@ -53,7 +53,7 @@ def prepare(date):
         mdb.insert_db_from_df(data, table_name, cols_type, False, "`date`,`code`")
 
     except Exception as e:
-        logging.debug("{}处理异常：{}".format('klinepattern_data_daily_job.prepare', e))
+        logging.error(f"klinepattern_data_daily_job.prepare处理异常：{e}")
 
 
 def run_check(stocks, date=None, workers=40):
@@ -70,10 +70,9 @@ def run_check(stocks, date=None, workers=40):
                     if _data_ is not None:
                         data[stock] = _data_
                 except Exception as e:
-                    logging.debug(
-                        "{}处理异常：{}代码{}".format('klinepattern_data_daily_job.run_check', stock[1], e))
+                    logging.error(f"klinepattern_data_daily_job.run_check处理异常：{stock[1]}代码{e}")
     except Exception as e:
-        logging.debug("{}处理异常：{}".format('klinepattern_data_daily_job.run_check', e))
+        logging.error(f"klinepattern_data_daily_job.run_check处理异常：{e}")
     if not data:
         return None
     else:

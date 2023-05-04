@@ -21,9 +21,10 @@ if not os.path.exists(log_execute_job_path):
 current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 log_filename = 'stock_execute_job-{}.log'.format(current_time)
 logging.basicConfig(format='%(asctime)s %(message)s', filename=os.path.join(log_execute_job_path, log_filename))
-logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.INFO)
 import init_job as bj
 import basic_data_daily_job as hdj
+import basic_data_other_daily_job as hdtj
 import indicators_data_daily_job as gdj
 import strategy_data_daily_job as sdj
 import backtest_data_daily_job as bdj
@@ -39,12 +40,12 @@ def main():
     logging.info("######## 任务执行时间: %s #######" % _start.strftime("%Y-%m-%d %H:%M:%S.%f"))
     # 第1步创建数据库
     bj.main()
-
+    # 第2步创建股票基础数据表
+    hdj.main()
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        # 第2步创建股票基础数据表
-        executor.submit(hdj.main)
-        time.sleep(2)
-        # # 第3步创建股票指标数据表
+        # # 第3.1步创建股票指标数据表
+        executor.submit(hdtj.main)
+        # # 第3.2步创建股票指标数据表
         executor.submit(gdj.main)
         # # # # 第4步创建股票k线形态表
         executor.submit(kdj.main)

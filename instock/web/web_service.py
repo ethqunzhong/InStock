@@ -24,6 +24,7 @@ if not os.path.exists(log_web_path):
 current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 log_filename = 'stock_execute_job-{}.log'.format(current_time)
 logging.basicConfig(format='%(asctime)s %(message)s', filename=os.path.join(log_web_path, log_filename))
+logging.getLogger().setLevel(logging.ERROR)
 
 import instock.lib.torndb as torndb
 import instock.lib.database as mdb
@@ -71,18 +72,15 @@ class HomeHandler(webBase.BaseHandler, ABC):
 
 
 def main():
-    tornado.options.parse_command_line()
+    # tornado.options.parse_command_line()
+    tornado.options.options.logging = None
+
     http_server = tornado.httpserver.HTTPServer(Application())
-    port = 9999
+    port = 9988
     http_server.listen(port)
 
-    # tornado.options.log_file_prefix = os.path.join(cpath, '/logs/stock_web.log')
-    tornado.options.options.logging = None
-    # tornado.options.parse_command_line()
-    logging.getLogger().setLevel(logging.INFO)
-
-    print("服务已启动，web地址 : http://localhost:9999/")
-    logging.info("服务已启动，web地址 : http://localhost:9999/")
+    print(f"服务已启动，web地址 : http://localhost:{port}/")
+    logging.error(f"服务已启动，web地址 : http://localhost:{port}/")
 
     tornado.ioloop.IOLoop.current().start()
 

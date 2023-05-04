@@ -1,12 +1,17 @@
-为了满足一些用户的需求，计划做个docker镜像（简直是浪费我时间），强烈建议在windows使用本系统，因为本系统是具有价值的，但等待你去深入挖掘，挖掘是要动手的，否则是走马观花一无所得......
-
 **InStock股票系统**
 
-InStock股票系统，抓取股票每日关键数据，计算股票各种指标，识别K线各种形态，内置多种选股策略，支持选股验证回测，支持自动交易，支持批量时间，运行高效，是量化投资的好帮手。
+InStock股票系统，抓取每日股票、ETF关键数据，计算股票各种指标，识别K线各种形态，内置多种选股策略，支持选股验证回测，支持自动交易，支持批量时间，运行高效，同时提供Docker镜像方便安装，是量化投资的好帮手。
+
+本项目地址：https://github.com/myhhub/InStock
+
+Docker镜像：https://hub.docker.com/r/mayanghua/instock **镜像优化构建仅180M**。
 
 # 功能介绍
 
 ##  一：股票每日数据
+
+包括每日股票数据、股票龙虎榜、股票大宗交易、每日ETF数据。
+
 抓取A股票每日数据，主要为一些关键数据，同时封装抓取方法，方便扩展系统获取个人关注的数据。基于免费开源的akshare抓取，更多数据获取参见 [akshare官网文档](https://www.akshare.xyz/data/stock/stock.html)。
 
 ![](img/00.jpg)
@@ -90,15 +95,43 @@ VR:
 
 ```
 1、放量上涨
+    1）当日比前一天上涨小于2%或或收盘价小于开盘价
+    2）当日成交额不低于2亿
+    3）当日成交量/5日平均成交量>=2
 2、均线多头
+    MA30向上
+    1）30日前的30日均线<20日前的30日均线<10日前的30日均线<当日的30日均线
+    2）(当日的30日均线/30日前的30日均线)>1.2
 3、停机坪
+    1）最近15日有涨幅大于9.5%，且必须是放量上涨
+    2）紧接的下个交易日必须高开，收盘价必须上涨，且与开盘价不能大于等于相差3%
+    3）接下2、3个交易日必须高开，收盘价必须上涨，且与开盘价不能大于等于相差3%，且每天涨跌幅在5%间
 4、回踩年线
+    1）分2个时间段：前段=最近60交易日最高收盘价之前交易日(长度>0)，后段=最高价当日及后面的交易日
+    2）前段由年线(250日)以下向上突破
+    3）后段必须在年线以上运行，且后段最低价日与最高价日相差必须在10-50日间
+    4）回踩伴随缩量：最高价日交易量/后段最低价日交易量>2,后段最低价/最高价<0.8
 5、突破平台
+    1）60日内某日收盘价>=60日均线>开盘价
+    2）且【1】放量上涨
+    3）且【1】间之前时间，任意一天收盘价与60日均线偏离在-5%~20%之间。
 6、无大幅回撤
+    1）当日收盘价比60日前的收盘价的涨幅小于0.6
+    2）最近60日，不能有单日跌幅超7%、高开低走7%、两日累计跌幅10%、两日高开低走累计10%
 7、海龟交易法则
+    最后一个交易日收市价为指定区间内最高价
+    1）当日收盘价>=最近60日最高收盘价
 8、高而窄的旗形
+    1）必须至少上市交易60日
+    2）当日收盘价/之前24~10日的最低价>=1.9
+    3）之前24~10日必须连续两天涨幅大于等于9.5%
 9、放量跌停
+    1）跌>9.5%
+    2）成交额不低于2亿
+    3）成交量至少是5日平均成交量的4倍
 10、低ATR成长
+    1）必须至少上市交易250日
+    2）最近10个交易日的最高收盘价必须比最近10个交易日的最低收盘价高1.1倍
 ```
 
 ![](img/04.jpg)
@@ -135,7 +168,8 @@ VR:
 区间时间作业 python execute_daily_job.py 2022-01-01 2022-03-01
 
 ------单功能作业，支持批量作业，回测数据自动填补到当前
-基础数据作业 python basic_data_daily_job.py
+基础数据实时作业 python basic_data_daily_job.py
+基础数据非实时作业 python basic_data_other_daily_job.py
 指标数据作业 python indicators_data_daily_job.py
 K线形态作业 klinepattern_data_daily_job.py
 策略数据作业 python strategy_data_daily_job.py
@@ -167,9 +201,17 @@ K线形态作业 klinepattern_data_daily_job.py
 
 # 安装说明
 
-建议windows下安装，方便操作及使用系统，同时安装也非常简单。以下安装及运行以windows为例进行介绍。
+本系统支持Windows、Linux、MacOS，同时本系统创建了Docker镜像，按自己需要选择安装方式。
 
-## 1.安装python
+下面按分常规安装方式、docker镜像安装方式进行一一说明。
+
+## 一：常规安装方式
+
+建议windows下安装，方便操作及使用系统，同时安装也非常简单。
+
+以下安装及运行以windows为例进行介绍。
+
+### 1.安装python
 
 项目开发使用python 3.11，建议最新版。
 
@@ -179,14 +221,14 @@ K线形态作业 klinepattern_data_daily_job.py
 python pip config --global set  global.index-url https://mirrors.aliyun.com/pypi/simple/
 # 如果你只想为当前用户设置，你也可以去掉下面的"--global"选项
 ```
-## 2.安装mysql
+### 2.安装mysql
 
 建议最新版。
 
 ```
 在官网 https://dev.mysql.com/downloads/mysql/ 下载安装包，一键安装即可。
 ```
-## 3.安装依赖库
+### 3.安装依赖库
 
 依赖库都是目前最新版本。
 
@@ -197,8 +239,11 @@ a.安装依赖库：
 python pip install -r requirements.txt
 ```
 b.若想升级项目依赖库至最新版，可以通过下面方法：
+
+先打开requirements.txt，然后修改文件中的“==”为“>=”，接着执行下面命令：
+
 ```
-python pip install --upgrade -r requirements.txt 
+python pip install -r requirements.txt --upgrade
 ```
 
 c.若扩展了本项目，可以通过下面方法生成项目依赖：
@@ -213,7 +258,7 @@ python  pipreqs --encoding utf-8 --force ./
 # 本项目是utf-8编码
 ```
 
-## 4.安装 talib
+### 4.安装 talib
 
 ```
 第一种方法. pip 下安装
@@ -231,7 +276,7 @@ python  pipreqs --encoding utf-8 --force ./
 （3）此处确认是否继续安装？输入y 继续安装，直到完成
 （4）安装完成。
 ```
-## 5.安装 Navicat（可选）
+### 5.安装 Navicat（可选）
 
 Navicat可以方便管理数据库，以及可以手工对数据进行查看、处理、分析、挖掘。
 
@@ -242,7 +287,7 @@ Navicat是一套可创建多个连接的数据库管理工具，用以方便管�
 
 （2）然后下载破解补丁: https://pan.baidu.com/s/18XpTHrm9OiLEl3u6z_uxnw 提取码: 8888 ，破解即可。
 ```
-## 6.配置数据库
+### 6.配置数据库
 
 一般可能会修改的信息是”数据库访问密码“。
 
@@ -256,7 +301,7 @@ db_port = 3306  # 数据库服务端口
 db_charset = "utf8mb4"  # 数据库字符集
 ```
 
-## 7.安装自动交易（可选）
+### 7.安装自动交易（可选）
 
 ```
 1.安装交易软件
@@ -287,9 +332,9 @@ db_charset = "utf8mb4"  # 数据库字符集
         详情参阅usage.md，配置对应券商
 ```
 
-# 运行说明
+### 8.运行说明
 
-## 1.执行数据抓取、处理、分析、识别
+#### 8.1.执行数据抓取、处理、分析、识别
 
 支持批量作业，具体参见run_job.bat中的注释说明。
 
@@ -315,18 +360,130 @@ db_charset = "utf8mb4"  # 数据库字符集
 #基础数据作业 
 python basic_data_daily_job.py
 ```
-## 2.启动web服务
+#### 8.2.启动web服务
 
 ```
 运行 run_web.bat
 ```
-启动服务后，打开浏览器，输入：http://localhost:9999/ ，即可使用本系统的可视化功能。
+启动服务后，打开浏览器，输入：http://localhost:9988/ ，即可使用本系统的可视化功能。
 
-## 3.启动交易服务
+#### 8.3.启动交易服务
 
 ```
 运行 run_trade.bat
 ```
+
+## 二：docker镜像安装方式
+
+没有docker环境，可以参考：[VirtualBox虚拟机安装Ubuntu](https://www.ljjyy.com/archives/2019/10/100590.html)，里面也介绍了python、docker等常用软件的安装，若想在Windows下安装docker自行百度。
+
+### 1.安装数据库镜像
+
+如果已经有Mysql、mariadb数据库可以跳过本步。
+
+运行下面命令：
+
+**特别提醒：执行命令的用户要有root权限，其他命令也如此。例如：ubuntu系统在命令前加上sudo** ，sudo docker......
+
+```
+docker run -d --name InStockDbService \
+    -v /data/mariadb/data:/var/lib/instockdb \
+    -e MYSQL_ROOT_PASSWORD=root \
+    library/mariadb:latest
+```
+
+### 2.安装本系统镜像
+
+a.若按上面【1.安装数据库镜像】装的数据库，运行下面命令：
+
+```
+docker run -dit --name InStock --link=InStockDbService \
+    -p 9988:9988 \
+    -e db_host=InStockDbService \
+    mayanghua/instock:latest
+```
+
+b.已经有Mysql、mariadb数据库，运行下面命令：
+
+```
+docker run -dit --name InStock \
+    -p 9988:9988 \
+    -e db_host=localhost \
+    -e db_user=root \
+    -e db_password=root \
+    -e db_database=instockdb \
+    -e db_port=3306 \
+    mayanghua/instock:latest
+```
+
+docker -e 参数说明：
+```
+db_host       # 数据库服务主机
+db_user       # 数据库访问用户
+db_password   # 数据库访问密码
+db_database   # 数据库名称
+db_port       # 数据库服务端口
+```
+按自己数据库实际情况配置参数。
+
+### 3. 系统运行
+
+启动容器后，会自动运行，首先会初始化数据、启动web服务。然后每小时执行“基础数据抓取”，每天17:30执行所有的数据抓取、处理、分析、识别、回测。
+
+打开浏览器，输入：http://localhost:9988/ ，即可使用本系统的可视化功能。
+
+### 4.历史数据
+
+历史数据抓取、处理、分析、识别、回测，运行下面命令：
+
+```
+docker exec -it InStock bash 
+cat InStock/instock/bin/run_job.sh
+#查看run_job.sh注释,自己选择作业
+------整体作业，支持批量作业------
+当前时间作业 python execute_daily_job.py
+单个时间作业 python execute_daily_job.py 2022-03-01
+枚举时间作业 python execute_daily_job.py 2022-01-01,2021-02-08,2022-03-12
+区间时间作业 python execute_daily_job.py 2022-01-01 2022-03-01
+------单功能作业，支持批量作业，回测数据自动填补到当前
+基础数据实时作业 python basic_data_daily_job.py
+基础数据非实时作业 python basic_data_other_daily_job.py
+指标数据作业 python indicators_data_daily_job.py
+K线形态作业 klinepattern_data_daily_job.py
+策略数据作业 python strategy_data_daily_job.py
+回测数据 python backtest_data_daily_job.py
+第一种方法：
+python execute_daily_job.py 2023-03-01,2023-03-02
+第二种方法：
+修改run_job.sh，然后运行 bash InStock/instock/bin/run_job.sh
+```
+
+### 5.查看日志
+
+运行下面命令：
+
+```
+docker exec -it InStock bash 
+cat InStock/instock/log/stock_execute_job.log
+cat InStock/instock/log/stock_web.log
+```
+
+### 6.docker常用命令
+
+```
+docker container stop InStock InStockDbService
+#停止容器
+docker container prune
+#回收容器
+docker rmi mayanghua/instock:latest library/mariadb:latest
+#删除镜像
+```
+
+具体参见：[Docker基础之 二.镜像及容器的基本操作](https://www.ljjyy.com/archives/2018/06/100208.html)
+
+### 7.自动交易
+
+目前只支持windows。参考常规安装方式,只需安装python、依赖库，**不需安装mysql、talib等**。
 
 # 特别声明
 
